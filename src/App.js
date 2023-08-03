@@ -17,18 +17,14 @@ function App() {
       if (!response.ok) {
         throw new Error('Something went wrong!');
       }
-
       const data = await response.json();
+      const loadedMovies = [];
 
-      const loadedMovies=[];
-
-      for(const key in data){
+      for (const key in data) {
         loadedMovies.push({
-          id:key,
-          title:data[key].title,
-          openingText:data[key].openingText,
-          releaseDate:data[key].releaseDate
-        })
+          id: key,
+          ...data[key]
+        });
       }
       setMovies(loadedMovies);
     } catch (error) {
@@ -37,34 +33,55 @@ function App() {
     setIsLoading(false);
   }, []);
 
+  const addMovieHandler = useCallback(async (movie) => {
+    try {
+      const response = await fetch('https://createhttp-eadcb-default-rtdb.firebaseio.com/movies.json', {
+        method: 'POST',
+        body: JSON.stringify(movie),
+        headers: {
+          'Content-type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add movie');
+      }
+
+      const data = await response.json();
+      console.log(data);
+      setMovies(prevMovies => [...prevMovies, { id: data.name, ...movie }]);
+    } catch (error) {
+      console.log(error);
+    }
+  }, []);
+
+  const deleteMovieHandler = useCallback(async (movieId) => {
+    try {
+      const response = await fetch(`https://createhttp-eadcb-default-rtdb.firebaseio.com/movies/${movieId}.json`, {
+        method: 'DELETE',
+        headers: {
+          'Content-type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete movie');
+      }
+
+      setMovies(prevMovies => prevMovies.filter(movie => movie.id !== movieId));
+    } catch (error) {
+      console.log(error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchMoviesHandler();
   }, [fetchMoviesHandler]);
 
-  async function addMovieHandler(movie) {
-    try{
-      const response = await fetch('https://createhttp-eadcb-default-rtdb.firebaseio.com/movies.json',
-      {
-        method:'POST',
-        body:JSON.stringify(movie),
-        headers:{
-          'Content-type':'application/json'
-        }
-      }
-      );
-      const data=await response.json();
-      console.log(data);
-    }catch(error){
-      console.log(error)
-    }
-   
-    
-  }
-
   let content = <p>Found no movies.</p>;
 
   if (movies.length > 0) {
-    content = <MoviesList movies={movies} />;
+    content = <MoviesList movies={movies} onDeleteMovie={deleteMovieHandler} />;
   }
 
   if (error) {
