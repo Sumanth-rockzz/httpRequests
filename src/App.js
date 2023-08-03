@@ -1,51 +1,89 @@
-import React,{useState} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 import MoviesList from './components/MoviesList';
+import AddMovie from './components/AddMovie';
 import './App.css';
 
 function App() {
-  const [movies,setMovies]=useState([]);
-  const [isLoading,setIsLoading]=useState(false);
-  const [error,setError]=useState(null);
- async function fetchMovieHandler(){
-  try{
+  const [movies, setMovies] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchMoviesHandler = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const response = await fetch('https://swapi.dev/api/film/');
-    console.log(response)
-    if(!response.ok){
-      throw new Error("Something Went Wrong")
-    }
-    const data=await response.json();
-    
-    const transformedMovies=data.results.map((movie)=>{
-      return {
-        id:movie.episode_id,
-        title:movie.title,
-        openingText:movie.opening_crawl,
-        releaseDate:movie.release_date
+    try {
+      const response = await fetch('https://createhttp-eadcb-default-rtdb.firebaseio.com/movies.json');
+      if (!response.ok) {
+        throw new Error('Something went wrong!');
       }
-    })
-    setMovies(transformedMovies)
 
-  }catch(error){
-    console.log(error.message);
-    setError(error.message)
+      const data = await response.json();
+
+      const loadedMovies=[];
+
+      for(const key in data){
+        loadedMovies.push({
+          id:key,
+          title:data[key].title,
+          openingText:data[key].openingText,
+          releaseDate:data[key].releaseDate
+        })
+      }
+      setMovies(loadedMovies);
+    } catch (error) {
+      setError(error.message);
+    }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
+
+  async function addMovieHandler(movie) {
+    try{
+      const response = await fetch('https://createhttp-eadcb-default-rtdb.firebaseio.com/movies.json',
+      {
+        method:'POST',
+        body:JSON.stringify(movie),
+        headers:{
+          'Content-type':'application/json'
+        }
+      }
+      );
+      const data=await response.json();
+      console.log(data);
+    }catch(error){
+      console.log(error)
+    }
+   
+    
   }
-  setIsLoading(false);
- }
+
+  let content = <p>Found no movies.</p>;
+
+  if (movies.length > 0) {
+    content = <MoviesList movies={movies} />;
+  }
+
+  if (error) {
+    content = <p>{error}</p>;
+  }
+
+  if (isLoading) {
+    content = <p>Loading...</p>;
+  }
 
   return (
     <React.Fragment>
       <section>
-        <button onClick={fetchMovieHandler}>Fetch Movies</button>
+        <AddMovie onAddMovie={addMovieHandler} />
       </section>
       <section>
-      {!isLoading && movies.length>0 && <MoviesList movies={movies} />}
-      {!isLoading && movies.length===0 && !error && <p>No Movies Found</p>}
-      {isLoading && <p>Loading....</p>}
-      {error &&<p>{error}</p>}
+        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
       </section>
+      <section>{content}</section>
     </React.Fragment>
   );
 }
